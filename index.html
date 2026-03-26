@@ -896,6 +896,241 @@
 
 <script>
 // ═══════════════════════════════════════════════════
+//  i18n — bilingual support
+// ═══════════════════════════════════════════════════
+const STRINGS = {
+  zh: {
+    title:'圣多纳释放法', subtitle:'觉察 · 允许 · 释放',
+    instr_idle:'点击水下的欲望泡泡，让它浮上水面（最多同时3个）',
+    instr_active:'允许 — 随它去；不允许 — 承认它在',
+    deny:'不允许', allow:'允许',
+    toast_allow:'✨ 已允许，随它去吧', toast_deny:'🌊 已承认，随它去吧',
+    toast_max:'最多同时觉察 3 个欲望',
+    nav_goals:'目标表', nav_gainbook:'收获本', nav_asst:'释放助手',
+    sidebar_title:'📋 目录', tab_goals:'🎯 目标表', tab_gainbook:'📒 收获本',
+    goal_ph:'写下想要释放的目标…', goal_add:'添加',
+    goal_release:'🫧 释放', goal_drop:'✨ 掉落',
+    goal_empty:'还没有目标，写下你想释放的吧 🌊',
+    gain_ph:'写下你释放后的收获…', gain_submit:'记录',
+    asst_title:'🫧 释放助手',
+    asst_sub:'写下你对这个目标的感受、担忧或执着，释放助手会帮你看见背后的欲望模式。',
+    asst_ph:'例如：我很担心项目做不好，害怕别人觉得我能力不足……',
+    asst_submit:'✨ 分析', asst_loading:'正在感受你的文字…',
+    asst_go:'🫧 去释放这些想要',
+    queue_done:'✨ 所有想要已释放完毕',
+    toast_goal_set:'🌊 目标已设定，开始释放吧',
+    toast_dropped:'✨ 目标已掉落并记录到收获本',
+    toast_no_result:'还没有分析结果', toast_no_input:'请先写下你的感受',
+    banner_label:'当前正在释放的目标',
+    d_control:'想要\n控制', d_approval:'想要被\n认同', d_safety:'想要\n安全',
+    counter: function(n){ return '已释放 ' + n + ' 个欲望'; },
+    my_gains: function(n){ return '我的记录（' + n + ' 条）'; },
+    shared_gains: function(n){ return '所有人的收获（' + n + ' 条）'; },
+    gain_recorded: function(cat){ return (CAT_ICONS[cat]||'🌸') + ' 收获已记录'; },
+    gain_subtitle: '记录每一次释放后的收获与领悟，与所有人共享',
+    filter_all: '全部',
+    sort_likes: '❤️ 最多赞',
+    sort_time: '🕐 最新',
+    cat_health:'🌿 健康', cat_wealth:'💰 财富', cat_sp:'💞 SP',
+    cat_relations:'🤝 人际关系', cat_study:'📚 学业', cat_work:'💼 工作', cat_other:'✨ 其他',
+    goal_add_btn: '添加',
+  },
+  en: {
+    title:'Sedona Method', subtitle:'Awareness · Allow · Release',
+    instr_idle:'Tap a desire bubble to bring it to the surface (max 3 at once)',
+    instr_active:'Allow — let it go；Deny — acknowledge it',
+    deny:'Deny', allow:'Allow',
+    toast_allow:'✨ Allowed — let it go', toast_deny:'🌊 Acknowledged — let it go',
+    toast_max:'Max 3 desires at once',
+    nav_goals:'Goals', nav_gainbook:'Gain Book', nav_asst:'Releasing\nAssistant',
+    sidebar_title:'📋 Menu', tab_goals:'🎯 Goals', tab_gainbook:'📒 Gain Book',
+    goal_ph:'Write a goal to release…', goal_add:'Add',
+    goal_release:'🫧 Release', goal_drop:'✨ Drop',
+    goal_empty:'No goals yet — write one you wish to release 🌊',
+    gain_ph:'Write your insight after releasing…', gain_submit:'Save',
+    asst_title:'🫧 Releasing Assistant',
+    asst_sub:'Describe your feelings or attachments. The AI will reveal the desire patterns beneath.',
+    asst_ph:"e.g. I'm worried I'll fail the project and people will think I'm incompetent…",
+    asst_submit:'✨ Analyse', asst_loading:'Reading your words…',
+    asst_go:'🫧 Release these desires',
+    queue_done:'✨ All desires released',
+    toast_goal_set:'🌊 Goal set — start releasing',
+    toast_dropped:'✨ Goal dropped and saved to Insights',
+    toast_no_result:'No analysis yet', toast_no_input:'Please write your feelings first',
+    banner_label:'Currently releasing',
+    d_control:'Wanting to\nControl', d_approval:'Wanting\nApproval', d_safety:'Wanting\nSecurity',
+    counter: function(n){ return n + (n===1?' desire':' desires') + ' released'; },
+    my_gains: function(n){ return 'My Gains (' + n + ')'; },
+    shared_gains: function(n){ return "Everyone's Gains (" + n + ')'; },
+    gain_recorded: function(cat){ return (CAT_ICONS[cat]||'🌸') + ' Insight saved'; },
+    gain_subtitle: 'Record your insights after each release and share with everyone',
+    filter_all: 'All',
+    sort_likes: '❤️ Most liked',
+    sort_time: '🕐 Latest',
+    cat_health:'🌿 Health', cat_wealth:'💰 Wealth', cat_sp:'💞 SP',
+    cat_relations:'🤝 Relations', cat_study:'📚 Study', cat_work:'💼 Work', cat_other:'✨ Other',
+    goal_add_btn: 'Add',
+  },
+};
+
+let currentLang = 'zh';
+
+function t(key) {
+  var v = STRINGS[currentLang][key];
+  if (v === undefined) v = STRINGS['zh'][key];
+  return v !== undefined ? v : key;
+}
+function tf(key) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  var fn = STRINGS[currentLang][key] || STRINGS['zh'][key];
+  return typeof fn === 'function' ? fn.apply(null, args) : key;
+}
+
+function getLangSystemPrompt() {
+  if (currentLang === 'en') {
+    return 'You are a deep psychological insight guide, expert in the Sedona Method.\n\n'
+      + 'The three core desires:\n'
+      + '- control: craving to control situations, outcomes, others; fear of losing control\n'
+      + '- approval: craving acceptance, validation, love; fear of rejection, criticism, abandonment\n'
+      + '- safety: craving stability, certainty, permanence; fear of loss, change, harm\n\n'
+      + 'Tasks:\n'
+      + '1. Read deeply — sense emotional structure beneath surface words\n'
+      + '2. Map each distinct thought/feeling to its underlying desire\n'
+      + '3. Prioritise desires the user hasn\'t consciously noticed\n'
+      + '4. Note how desires intertwine\n\n'
+      + 'Principles:\n'
+      + '- Explain WHY each thought reveals this desire\n'
+      + '- Write like a warm but perceptive counselor\n'
+      + '- If user expressed A but B hides beneath, name B\n'
+      + '- 40-60 words per reason\n\n'
+      + 'Reply ONLY in this JSON format:\n'
+      + '{"points":[{"quote":"brief phrase max 20 words","desire":"control|approval|safety","reason":"insight 40-60 words"}]}\n\n'
+      + 'No limit on number of points. List every insight. Same desire can appear multiple times.';
+  }
+  return '你是一位深度心理洞察师，精通圣多纳释放法（Sedona Method）。\n\n'
+    + '三种核心欲望：\n'
+    + '- control（想要控制）：渴望掌控局面、结果、他人；害怕失控、混乱、不确定\n'
+    + '- approval（想要被认同）：渴望被接受、肯定、爱；害怕被拒绝、批评、抛弃\n'
+    + '- safety（想要安全）：渴望稳定、保障、确定；害怕失去、改变、受伤\n\n'
+    + '任务：\n'
+    + '1. 感受文字背后的情绪结构，不只看表面词汇\n'
+    + '2. 找出每个独立想法或情绪点，识别背后的欲望类型\n'
+    + '3. 重点洞察用户没有意识到的深层欲望\n'
+    + '4. 注意欲望之间的交织\n\n'
+    + '原则：\n'
+    + '- 解释为什么这个想法背后是这种欲望\n'
+    + '- 像温柔而犀利的咨询师说话，让人感到被看见又能揭示盲点\n'
+    + '- 如果用户表达了A但背后藏着B，要指出来\n'
+    + '- 每条reason控制在40-60字\n\n'
+    + '严格用以下JSON格式回复，不要任何其他内容：\n'
+    + '{"points":[{"quote":"从用户原文提炼的短句不超过20字","desire":"control或approval或safety","reason":"深度洞察40-60字"}]}\n\n'
+    + '重要：不要限制条数。每个值得洞察的点都单独列出，同一种欲望可以多次出现。';
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  document.getElementById('langBtn').textContent = currentLang === 'zh' ? 'EN' : '中文';
+  applyLang();
+}
+
+function applyLang() {
+  var L = STRINGS[currentLang];
+
+  document.querySelector('.header h1').textContent = L.title;
+  document.querySelector('.header p').textContent  = L.subtitle;
+
+  var atSurface = risingSlots.filter(function(s){ return s && s.el.classList.contains('at-surface'); });
+  document.getElementById('instr').textContent = atSurface.length > 0 ? L.instr_active : L.instr_idle;
+  document.getElementById('counter').textContent = tf('counter', released);
+
+  document.getElementById('sharedDeny').textContent  = L.deny;
+  document.getElementById('sharedAllow').textContent = L.allow;
+
+  var st = document.querySelector('.sidebar-title');
+  if (st) st.textContent = L.sidebar_title;
+  var ng = document.getElementById('nav-goals');
+  if (ng) ng.querySelectorAll('span')[1].textContent = L.nav_goals;
+  var ngb = document.getElementById('nav-gainbook');
+  if (ngb) ngb.querySelectorAll('span')[1].textContent = L.nav_gainbook;
+  var na = document.getElementById('nav-asst');
+  if (na) na.querySelectorAll('span')[1].textContent = L.nav_asst;
+
+  var tg = document.getElementById('tab-btn-goals');
+  if (tg) tg.textContent = L.tab_goals;
+  var tgb = document.getElementById('tab-btn-gainbook');
+  if (tgb) tgb.textContent = L.tab_gainbook;
+
+  var gi = document.getElementById('goalInput');
+  if (gi) gi.placeholder = L.goal_ph;
+  var gis = document.getElementById('gainInputSb');
+  if (gis) gis.placeholder = L.gain_ph;
+
+  var at = document.querySelector('#asstModalBox .modal-title');
+  if (at) at.textContent = L.asst_title;
+  var as = document.querySelector('.asst-subtitle');
+  if (as) as.textContent = L.asst_sub;
+  var ai = document.getElementById('asstInput');
+  if (ai) ai.placeholder = L.asst_ph;
+  var asub = document.getElementById('asstSubmit');
+  if (asub) asub.textContent = L.asst_submit;
+  var al = document.querySelector('#asstLoading span');
+  if (al) al.textContent = L.asst_loading;
+
+  var bl = document.querySelector('.active-goal-label');
+  if (bl) bl.textContent = L.banner_label;
+
+  DESIRES[0].label = L.d_control;
+  DESIRES[1].label = L.d_approval;
+  DESIRES[2].label = L.d_safety;
+  for (var b of idleBubbles) {
+    b.el.innerHTML = b.desire.label.replace('\n', '<br>');
+  }
+
+  // Goal category buttons
+  var catBtns = [
+    ['健康','Health','cat_health'],['财富','Wealth','cat_wealth'],['SP','SP','cat_sp'],
+    ['人际关系','Relations','cat_relations'],['学业','Study','cat_study'],
+    ['工作','Work','cat_work'],['其他','Other','cat_other']
+  ];
+  var goalCatEls = document.querySelectorAll('#goalCats .gain-cat');
+  goalCatEls.forEach(function(btn, i) {
+    if (catBtns[i]) btn.textContent = t(catBtns[i][2]);
+  });
+  var gainCatEls = document.querySelectorAll('#gainCatsSb .gain-cat');
+  gainCatEls.forEach(function(btn, i) {
+    if (catBtns[i]) btn.textContent = t(catBtns[i][2]);
+  });
+
+  // Goal add button
+  var addBtns = document.querySelectorAll('.goals-add-row button, .gain-input-row button');
+  addBtns.forEach(function(btn) {
+    if (btn.textContent === '添加' || btn.textContent === 'Add') btn.textContent = t('goal_add_btn');
+    if (btn.textContent === '记录' || btn.textContent === 'Save') btn.textContent = t('gain_submit');
+  });
+
+  // Gain subtitle
+  var gainSub = document.getElementById('gainSubtitle');
+  if (gainSub) gainSub.textContent = t('gain_subtitle');
+
+  // Filter all button
+  var filterAll = document.querySelector('.gain-filter[data-filter="all"]');
+  if (filterAll) filterAll.textContent = t('filter_all');
+
+  // Sort buttons
+  var sortLikes = document.getElementById('sortLikesSb');
+  if (sortLikes) sortLikes.textContent = t('sort_likes');
+  var sortTime = document.getElementById('sortTimeSb');
+  if (sortTime) sortTime.textContent = t('sort_time');
+
+  // Goal item buttons (release/drop) — re-render
+  renderGoals();
+  if (document.getElementById('tab-gainbook') && document.getElementById('tab-gainbook').classList.contains('active')) {
+    loadGainsSb();
+  }
+}
+
+
+// ═══════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════
 const DESIRES = [
@@ -1496,8 +1731,8 @@ function renderGoals() {
       ${badge}
       <span class="goal-item-text">${escapeHtml(g.text)}</span>
       <div class="goal-item-actions">
-        <button class="goal-btn-release" onclick="releaseGoal(${i})">${t('goal_release')}</button>
-        <button class="goal-btn-drop"    onclick="dropGoal(${i})">${t('goal_drop')}</button>
+        <button class="goal-btn-release" onclick="releaseGoal(${i})">${typeof t==='function'?t('goal_release'):'🫧 释放'}</button>
+        <button class="goal-btn-drop"    onclick="dropGoal(${i})">${typeof t==='function'?t('goal_drop'):'✨ 掉落'}</button>
         <button class="goal-btn-del"     onclick="deleteGoal(${i})">✕</button>
       </div>
     </li>`;
@@ -1891,240 +2126,6 @@ handleDecision = function(allow) {
     }, 2300);
   }
 };
-
-// ═══════════════════════════════════════════════════
-//  i18n — bilingual support
-// ═══════════════════════════════════════════════════
-const STRINGS = {
-  zh: {
-    title:'圣多纳释放法', subtitle:'觉察 · 允许 · 释放',
-    instr_idle:'点击水下的欲望泡泡，让它浮上水面（最多同时3个）',
-    instr_active:'允许 — 随它去；不允许 — 承认它在',
-    deny:'不允许', allow:'允许',
-    toast_allow:'✨ 已允许，随它去吧', toast_deny:'🌊 已承认，随它去吧',
-    toast_max:'最多同时觉察 3 个欲望',
-    nav_goals:'目标表', nav_gainbook:'收获本', nav_asst:'释放助手',
-    sidebar_title:'📋 目录', tab_goals:'🎯 目标表', tab_gainbook:'📒 收获本',
-    goal_ph:'写下想要释放的目标…', goal_add:'添加',
-    goal_release:'🫧 释放', goal_drop:'✨ 掉落',
-    goal_empty:'还没有目标，写下你想释放的吧 🌊',
-    gain_ph:'写下你释放后的收获…', gain_submit:'记录',
-    asst_title:'🫧 释放助手',
-    asst_sub:'写下你对这个目标的感受、担忧或执着，释放助手会帮你看见背后的欲望模式。',
-    asst_ph:'例如：我很担心项目做不好，害怕别人觉得我能力不足……',
-    asst_submit:'✨ 分析', asst_loading:'正在感受你的文字…',
-    asst_go:'🫧 去释放这些想要',
-    queue_done:'✨ 所有想要已释放完毕',
-    toast_goal_set:'🌊 目标已设定，开始释放吧',
-    toast_dropped:'✨ 目标已掉落并记录到收获本',
-    toast_no_result:'还没有分析结果', toast_no_input:'请先写下你的感受',
-    banner_label:'当前正在释放的目标',
-    d_control:'想要\n控制', d_approval:'想要被\n认同', d_safety:'想要\n安全',
-    counter: function(n){ return '已释放 ' + n + ' 个欲望'; },
-    my_gains: function(n){ return '我的记录（' + n + ' 条）'; },
-    shared_gains: function(n){ return '所有人的收获（' + n + ' 条）'; },
-    gain_recorded: function(cat){ return (CAT_ICONS[cat]||'🌸') + ' 收获已记录'; },
-    gain_subtitle: '记录每一次释放后的收获与领悟，与所有人共享',
-    filter_all: '全部',
-    sort_likes: '❤️ 最多赞',
-    sort_time: '🕐 最新',
-    cat_health:'🌿 健康', cat_wealth:'💰 财富', cat_sp:'💞 SP',
-    cat_relations:'🤝 人际关系', cat_study:'📚 学业', cat_work:'💼 工作', cat_other:'✨ 其他',
-    goal_add_btn: '添加',
-  },
-  en: {
-    title:'Sedona Method', subtitle:'Awareness · Allow · Release',
-    instr_idle:'Tap a desire bubble to bring it to the surface (max 3 at once)',
-    instr_active:'Allow — let it go；Deny — acknowledge it',
-    deny:'Deny', allow:'Allow',
-    toast_allow:'✨ Allowed — let it go', toast_deny:'🌊 Acknowledged — let it go',
-    toast_max:'Max 3 desires at once',
-    nav_goals:'Goals', nav_gainbook:'Gain Book', nav_asst:'Releasing\nAssistant',
-    sidebar_title:'📋 Menu', tab_goals:'🎯 Goals', tab_gainbook:'📒 Gain Book',
-    goal_ph:'Write a goal to release…', goal_add:'Add',
-    goal_release:'🫧 Release', goal_drop:'✨ Drop',
-    goal_empty:'No goals yet — write one you wish to release 🌊',
-    gain_ph:'Write your insight after releasing…', gain_submit:'Save',
-    asst_title:'🫧 Releasing Assistant',
-    asst_sub:'Describe your feelings or attachments. The AI will reveal the desire patterns beneath.',
-    asst_ph:"e.g. I'm worried I'll fail the project and people will think I'm incompetent…",
-    asst_submit:'✨ Analyse', asst_loading:'Reading your words…',
-    asst_go:'🫧 Release these desires',
-    queue_done:'✨ All desires released',
-    toast_goal_set:'🌊 Goal set — start releasing',
-    toast_dropped:'✨ Goal dropped and saved to Insights',
-    toast_no_result:'No analysis yet', toast_no_input:'Please write your feelings first',
-    banner_label:'Currently releasing',
-    d_control:'Wanting to\nControl', d_approval:'Wanting\nApproval', d_safety:'Wanting\nSecurity',
-    counter: function(n){ return n + (n===1?' desire':' desires') + ' released'; },
-    my_gains: function(n){ return 'My Gains (' + n + ')'; },
-    shared_gains: function(n){ return "Everyone's Gains (" + n + ')'; },
-    gain_recorded: function(cat){ return (CAT_ICONS[cat]||'🌸') + ' Insight saved'; },
-    gain_subtitle: 'Record your insights after each release and share with everyone',
-    filter_all: 'All',
-    sort_likes: '❤️ Most liked',
-    sort_time: '🕐 Latest',
-    cat_health:'🌿 Health', cat_wealth:'💰 Wealth', cat_sp:'💞 SP',
-    cat_relations:'🤝 Relations', cat_study:'📚 Study', cat_work:'💼 Work', cat_other:'✨ Other',
-    goal_add_btn: 'Add',
-  },
-};
-
-let currentLang = 'zh';
-
-function t(key) {
-  var v = STRINGS[currentLang][key];
-  if (v === undefined) v = STRINGS['zh'][key];
-  return v !== undefined ? v : key;
-}
-function tf(key) {
-  var args = Array.prototype.slice.call(arguments, 1);
-  var fn = STRINGS[currentLang][key] || STRINGS['zh'][key];
-  return typeof fn === 'function' ? fn.apply(null, args) : key;
-}
-
-function getLangSystemPrompt() {
-  if (currentLang === 'en') {
-    return 'You are a deep psychological insight guide, expert in the Sedona Method.\n\n'
-      + 'The three core desires:\n'
-      + '- control: craving to control situations, outcomes, others; fear of losing control\n'
-      + '- approval: craving acceptance, validation, love; fear of rejection, criticism, abandonment\n'
-      + '- safety: craving stability, certainty, permanence; fear of loss, change, harm\n\n'
-      + 'Tasks:\n'
-      + '1. Read deeply — sense emotional structure beneath surface words\n'
-      + '2. Map each distinct thought/feeling to its underlying desire\n'
-      + '3. Prioritise desires the user hasn\'t consciously noticed\n'
-      + '4. Note how desires intertwine\n\n'
-      + 'Principles:\n'
-      + '- Explain WHY each thought reveals this desire\n'
-      + '- Write like a warm but perceptive counselor\n'
-      + '- If user expressed A but B hides beneath, name B\n'
-      + '- 40-60 words per reason\n\n'
-      + 'Reply ONLY in this JSON format:\n'
-      + '{"points":[{"quote":"brief phrase max 20 words","desire":"control|approval|safety","reason":"insight 40-60 words"}]}\n\n'
-      + 'No limit on number of points. List every insight. Same desire can appear multiple times.';
-  }
-  return '你是一位深度心理洞察师，精通圣多纳释放法（Sedona Method）。\n\n'
-    + '三种核心欲望：\n'
-    + '- control（想要控制）：渴望掌控局面、结果、他人；害怕失控、混乱、不确定\n'
-    + '- approval（想要被认同）：渴望被接受、肯定、爱；害怕被拒绝、批评、抛弃\n'
-    + '- safety（想要安全）：渴望稳定、保障、确定；害怕失去、改变、受伤\n\n'
-    + '任务：\n'
-    + '1. 感受文字背后的情绪结构，不只看表面词汇\n'
-    + '2. 找出每个独立想法或情绪点，识别背后的欲望类型\n'
-    + '3. 重点洞察用户没有意识到的深层欲望\n'
-    + '4. 注意欲望之间的交织\n\n'
-    + '原则：\n'
-    + '- 解释为什么这个想法背后是这种欲望\n'
-    + '- 像温柔而犀利的咨询师说话，让人感到被看见又能揭示盲点\n'
-    + '- 如果用户表达了A但背后藏着B，要指出来\n'
-    + '- 每条reason控制在40-60字\n\n'
-    + '严格用以下JSON格式回复，不要任何其他内容：\n'
-    + '{"points":[{"quote":"从用户原文提炼的短句不超过20字","desire":"control或approval或safety","reason":"深度洞察40-60字"}]}\n\n'
-    + '重要：不要限制条数。每个值得洞察的点都单独列出，同一种欲望可以多次出现。';
-}
-
-function toggleLang() {
-  currentLang = currentLang === 'zh' ? 'en' : 'zh';
-  document.getElementById('langBtn').textContent = currentLang === 'zh' ? 'EN' : '中文';
-  applyLang();
-}
-
-function applyLang() {
-  var L = STRINGS[currentLang];
-
-  document.querySelector('.header h1').textContent = L.title;
-  document.querySelector('.header p').textContent  = L.subtitle;
-
-  var atSurface = risingSlots.filter(function(s){ return s && s.el.classList.contains('at-surface'); });
-  document.getElementById('instr').textContent = atSurface.length > 0 ? L.instr_active : L.instr_idle;
-  document.getElementById('counter').textContent = tf('counter', released);
-
-  document.getElementById('sharedDeny').textContent  = L.deny;
-  document.getElementById('sharedAllow').textContent = L.allow;
-
-  var st = document.querySelector('.sidebar-title');
-  if (st) st.textContent = L.sidebar_title;
-  var ng = document.getElementById('nav-goals');
-  if (ng) ng.querySelectorAll('span')[1].textContent = L.nav_goals;
-  var ngb = document.getElementById('nav-gainbook');
-  if (ngb) ngb.querySelectorAll('span')[1].textContent = L.nav_gainbook;
-  var na = document.getElementById('nav-asst');
-  if (na) na.querySelectorAll('span')[1].textContent = L.nav_asst;
-
-  var tg = document.getElementById('tab-btn-goals');
-  if (tg) tg.textContent = L.tab_goals;
-  var tgb = document.getElementById('tab-btn-gainbook');
-  if (tgb) tgb.textContent = L.tab_gainbook;
-
-  var gi = document.getElementById('goalInput');
-  if (gi) gi.placeholder = L.goal_ph;
-  var gis = document.getElementById('gainInputSb');
-  if (gis) gis.placeholder = L.gain_ph;
-
-  var at = document.querySelector('#asstModalBox .modal-title');
-  if (at) at.textContent = L.asst_title;
-  var as = document.querySelector('.asst-subtitle');
-  if (as) as.textContent = L.asst_sub;
-  var ai = document.getElementById('asstInput');
-  if (ai) ai.placeholder = L.asst_ph;
-  var asub = document.getElementById('asstSubmit');
-  if (asub) asub.textContent = L.asst_submit;
-  var al = document.querySelector('#asstLoading span');
-  if (al) al.textContent = L.asst_loading;
-
-  var bl = document.querySelector('.active-goal-label');
-  if (bl) bl.textContent = L.banner_label;
-
-  DESIRES[0].label = L.d_control;
-  DESIRES[1].label = L.d_approval;
-  DESIRES[2].label = L.d_safety;
-  for (var b of idleBubbles) {
-    b.el.innerHTML = b.desire.label.replace('\n', '<br>');
-  }
-
-  // Goal category buttons
-  var catBtns = [
-    ['健康','Health','cat_health'],['财富','Wealth','cat_wealth'],['SP','SP','cat_sp'],
-    ['人际关系','Relations','cat_relations'],['学业','Study','cat_study'],
-    ['工作','Work','cat_work'],['其他','Other','cat_other']
-  ];
-  var goalCatEls = document.querySelectorAll('#goalCats .gain-cat');
-  goalCatEls.forEach(function(btn, i) {
-    if (catBtns[i]) btn.textContent = t(catBtns[i][2]);
-  });
-  var gainCatEls = document.querySelectorAll('#gainCatsSb .gain-cat');
-  gainCatEls.forEach(function(btn, i) {
-    if (catBtns[i]) btn.textContent = t(catBtns[i][2]);
-  });
-
-  // Goal add button
-  var addBtns = document.querySelectorAll('.goals-add-row button, .gain-input-row button');
-  addBtns.forEach(function(btn) {
-    if (btn.textContent === '添加' || btn.textContent === 'Add') btn.textContent = t('goal_add_btn');
-    if (btn.textContent === '记录' || btn.textContent === 'Save') btn.textContent = t('gain_submit');
-  });
-
-  // Gain subtitle
-  var gainSub = document.getElementById('gainSubtitle');
-  if (gainSub) gainSub.textContent = t('gain_subtitle');
-
-  // Filter all button
-  var filterAll = document.querySelector('.gain-filter[data-filter="all"]');
-  if (filterAll) filterAll.textContent = t('filter_all');
-
-  // Sort buttons
-  var sortLikes = document.getElementById('sortLikesSb');
-  if (sortLikes) sortLikes.textContent = t('sort_likes');
-  var sortTime = document.getElementById('sortTimeSb');
-  if (sortTime) sortTime.textContent = t('sort_time');
-
-  // Goal item buttons (release/drop) — re-render
-  renderGoals();
-  if (document.getElementById('tab-gainbook') && document.getElementById('tab-gainbook').classList.contains('active')) {
-    loadGainsSb();
-  }
-}
 
 </script>
 </body>
